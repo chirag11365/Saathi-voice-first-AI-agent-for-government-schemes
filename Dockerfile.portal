@@ -1,0 +1,8 @@
+FROM node:20-bookworm-slim
+WORKDIR /app
+COPY mock-portal/package*.json ./
+RUN npm install --omit=dev
+COPY mock-portal/server.js ./server.js
+ENV PORT=5001
+EXPOSE 5001
+CMD ["node","server.js"]

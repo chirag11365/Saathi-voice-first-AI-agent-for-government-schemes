@@ -1,0 +1,22 @@
+.app-error {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #fffaf1;
+  color: #213d34;
+}
+
+.error-card {
+  width: min(100%, 560px);
+  padding: 32px;
+  border: 1px solid #e8e6da;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 35px #655c3910;
+}
+
+.error-card h1 { margin: 12px 0; font-size: clamp(28px, 5vw, 42px); }
+.error-card > p:not(.eyebrow) { color: #68796f; line-height: 1.65; }
+.error-card details { margin-top: 20px; color: #68796f; }
+.error-card code { display: block; margin-top: 8px; overflow-wrap: anywhere; color: #a4523b; }

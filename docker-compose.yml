@@ -1,0 +1,25 @@
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.portal
+    ports:
+      - "5001:5001"
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      CLIENT_ORIGIN: http://localhost:5173
+      MOCK_PORTAL_URL: http://portal:5001
+      MONGO_URI: ${MONGO_URI:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      GEMINI_FALLBACK_MODEL: ${GEMINI_FALLBACK_MODEL:-gemini-3.8-flash}
+      PORTAL_HICCUP: ${PORTAL_HICCUP:-true}
+      HEADLESS: "true"
+    depends_on:
+      - portal
