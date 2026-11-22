@@ -5,61 +5,52 @@ import { memorySessions } from './session.js';
 import { generateJson } from '../services/gemini.js';
 
 const router = Router();
-const languageNames = { en: 'English', hi: 'Hindi', ta: 'Tamil', bn: 'Bengali' };
-const fields = ['name','age','gender','state','occupation','annualIncome','category','landHolding','isStudent','courseLevel','bankAccount','aadhaarLast4'];
-function missing(profile) { return ['age','state','occupation','landHolding','annualIncome','category','isStudent','gender'].filter(key => profile?.[key] == null || profile[key] === ''); }
-function normalize(field,value,message) {
-  if(value==null)return null;
-  const text=String(value).trim();
-  if(['age','annualIncome','landHolding'].includes(field)){
-    const number=Number(text.replace(/,/g,'').match(/\d+(?:\.\d+)?/)?.[0]);if(!Number.isFinite(number))return null;
-    if(field==='annualIncome'&&/lakh|lac/i.test(text))return Math.round(number*100000);
-    if(field==='annualIncome'&&/thousand/i.test(text))return Math.round(number*1000);
-    return number;
-  }
-  if(field==='occupation'&&/\b(farmer|kisan|kisaan)\b|किसान/i.test(`${text} ${message}`))return 'farmer';
-  if(field==='isStudent'){
-    if(/\b(student|studying|enrolled)\b|छात्र|विद्यार्थी/i.test(message))return true;
-    if(/\b(not a student|no longer studying|not studying)\b|छात्र नहीं|पढ़ाई नहीं/i.test(message))return false;
-    return null;
-  }
-  if(field==='gender'){
-    if(/\b(female|woman|girl)\b|महिला|औरत/i.test(`${text} ${message}`))return 'female';
-    if(/\b(male|man|boy)\b|पुरुष|आदमी/i.test(`${text} ${message}`))return 'male';
-  }
-  if(field==='category'){
-    const category=text.match(/\b(SC|ST|OBC|General)\b/i)?.[0];return category?category.toUpperCase():text;
-  }
-  if(field==='state'){
-    const known=['Bihar','Maharashtra','Uttar Pradesh','Madhya Pradesh','Rajasthan','Tamil Nadu','West Bengal'];
-    return known.find(state=>state.toLowerCase()===text.toLowerCase())||text;
-  }
-  if(field==='aadhaarLast4')return text.replace(/\D/g,'').slice(-4);
-  return value;
+const fields = ['age','state','occupation','annualIncome','category','landHolding','isStudent','courseLevel'];
+const sensitive = /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|(?:\+?91[\s-]?)?[6-9]\d(?:[\s-]?\d){8}|\d(?:[\s-]?\d){11}|\b(?:my name|name is|i am called|my gender|bank account|bank details|phone number|email address|aadhaar|aadhar|आधार|बैंक खाता|फोन नंबर)\b|(?:bank|account|phone|mobile|बैंक|खाता|फ़ोन)[^\d]{0,24}\d{6,}/i;
+const privacyReply = { en: "You don’t need to share that. I’ll use demo values for the form.", hi: 'आपको यह जानकारी साझा करने की ज़रूरत नहीं है। फ़ॉर्म में डेमो जानकारी इस्तेमाल होगी।', ta: 'இந்த விவரத்தைப் பகிர வேண்டாம். படிவத்தில் மாதிரி விவரங்களைப் பயன்படுத்துவோம்.', bn: 'এই তথ্য দেওয়ার দরকার নেই। ফর্মে ডেমো তথ্য ব্যবহার করা হবে।', te: 'ఈ వివరాలు పంచుకోవాల్సిన అవసరం లేదు. ఫారమ్‌లో డెమో వివరాలు ఉపయోగిస్తాం.' };
+const fallbackReply = { en: 'You can skip this. Share your age group, state, or work if you like.', hi: 'आप इसे छोड़ सकते हैं। चाहें तो उम्र, राज्य या काम बताएं।', ta: 'இதைத் தவிர்க்கலாம். விரும்பினால் வயது, மாநிலம் அல்லது வேலையைச் சொல்லுங்கள்.', bn: 'এটি এড়িয়ে যেতে পারেন। চাইলে বয়স, রাজ্য বা কাজ বলুন।', te: 'దీన్ని వదిలేయవచ్చు. కావాలంటే వయస్సు, రాష్ట్రం లేదా పని చెప్పండి.' };
+function missing(profile = {}) { return ['age','state','occupation'].filter(key => profile?.[key] == null || profile[key] === ''); }
+function normalize(field, value) {
+  if (value == null) return null;
+  if (['age','annualIncome','landHolding'].includes(field)) { const n = Number(String(value).replace(/,/g, '').match(/\d+(?:\.\d+)?/)?.[0]); return Number.isFinite(n) && n >= 0 ? n : null; }
+  if (field === 'occupation') return /farmer|kisan/i.test(String(value)) ? 'farmer' : /student/i.test(String(value)) ? 'student' : String(value).slice(0, 80);
+  if (field === 'isStudent') return typeof value === 'boolean' ? value : null;
+  if (field === 'category') return /^(sc|st|obc|general)$/i.test(String(value)) ? String(value).toUpperCase() : null;
+  if (field === 'state') return String(value).slice(0, 80);
+  if (field === 'courseLevel') return String(value).slice(0, 80);
+  return null;
 }
 router.post('/', async (req, res) => {
   const { sessionId, message } = req.body || {};
-  if (!sessionId || !message?.trim()) return res.status(400).json({ error: 'sessionId and message are required' });
+  if (typeof message !== 'string' || !sessionId || !message.trim()) return res.status(400).json({ error: 'sessionId and message are required' });
   let session = memorySessions.get(sessionId);
   if (!session && mongoose.connection.readyState === 1) session = await Session.findById(sessionId).catch(() => null);
   if (!session) return res.status(404).json({ error: 'Session not found. Please start a new conversation.' });
   session.messages ??= [];
-  session.messages.push({ role: 'user', text: message, ts: new Date() });
-  const language = languageNames[session.language] || 'English';
-  try {
-    const result = await generateJson('profile', { message, profile: session.profile, language }, `Extract only facts explicitly stated. Return JSON with keys ${fields.join(', ')} and reply. Use null for unknown. Never guess or infer category or income. Reply in ${language}. Ask one short follow-up question about the most important missing profile field.`);
-    const profile = { ...(session.profile?.toObject?.() || session.profile || {}) };
-    for (const field of fields) if (result[field] !== undefined && result[field] !== null) { const value=normalize(field,result[field],message); if(value!==null)profile[field]=value; }
-    session.profile = profile;
-    const reply = typeof result.reply === 'string' ? result.reply : 'I understood. Could you share your age, state, or occupation?';
-    session.messages.push({ role: 'assistant', text: reply, ts: new Date() });
+  const lang = ['en','hi','ta','bn','te'].includes(session.language) ? session.language : 'en';
+  if (sensitive.test(message)) {
+    const reply = session.sensitiveWarningShown ? '' : privacyReply[lang];
+    session.sensitiveWarningShown = true;
+    if (reply) session.messages.push({ role: 'assistant', text: reply, ts: new Date() });
     if (session.save) await session.save();
-    res.json({ reply, profile, missingFields: missing(profile) });
-  } catch {
-    const reply = session.language === 'hi' ? 'माफ़ कीजिए, अभी मैं आपकी बात समझ नहीं पाया। कृपया फिर से कोशिश करें।' : 'Sorry, I could not process that just now. Please try again.';
-    session.messages.push({ role: 'assistant', text: reply, ts: new Date() });
-    if (session.save) await session.save();
-    res.json({ reply, profile: session.profile || {}, missingFields: missing(session.profile), warning: 'AI is temporarily unavailable.' });
+    return res.json({ reply, profile: session.profile || {}, missingFields: missing(session.profile), sensitiveInputDiscarded: true });
   }
+  const profile = { ...(session.profile?.toObject?.() || session.profile || {}) };
+  if (/^(skip|no|don't know|do not know|not sure|ಪತಾ नहीं|மறுக்கிறேன்)$/i.test(message.trim())) {
+    return res.json({ reply: fallbackReply[lang], profile, missingFields: missing(profile), skipped: true });
+  }
+  session.messages.push({ role: 'user', text: message.slice(0, 500), ts: new Date() });
+  let reply = fallbackReply[lang];
+  try {
+    const result = await generateJson('profile', { message: message.slice(0, 500), profile, language: lang }, `Extract only explicitly stated facts from this permitted scheme profile information. Return JSON keys ${fields.join(', ')} and reply. Do not request or return name, gender, phone, email, ID, Aadhaar, or bank details. Use null for unknown. Reply in language code ${lang}. Ask at most one short question, and only if follow-up count is below 2.`);
+    for (const field of fields) if (result[field] != null) { const value = normalize(field, result[field]); if (value != null) profile[field] = value; }
+    if (typeof result.reply === 'string') reply = result.reply.split(/(?<=[.!?।])\s+/u).slice(0, 2).join(' ').slice(0, 360);
+    if (/[?？]$/.test(reply) && (session.followUpCount || 0) < 2) session.followUpCount = (session.followUpCount || 0) + 1;
+    else if ((session.followUpCount || 0) >= 2) reply = reply.replace(/[^.!?।]*[?？]/g, '').trim() || fallbackReply[lang];
+  } catch { /* deterministic profile remains usable without Gemini */ }
+  session.profile = profile;
+  session.messages.push({ role: 'assistant', text: reply, ts: new Date() });
+  if (session.save) await session.save();
+  res.json({ reply, profile, missingFields: missing(profile) });
 });
 export default router;

@@ -1,9 +1,10 @@
-# Saathi demo (2 minutes)
+# Saathi demo script (2 minutes)
 
-1. Open the home page and select Hindi. Say or paste: “Main 45 saal ka kisan hoon, Bihar se, 2 acre zameen hai.” The demo chip provides the same input if microphone access is unavailable.
-2. Point out the profile card, then open **Schemes**. Show the PM-KISAN match, a non-match explanation, official source links, and the eligibility disclaimer.
-3. Choose **Apply for me** on an eligible result. Show the demo portal banner and live timeline as Saathi fills the form.
-4. At **Review and confirm**, inspect the values and masked bank account. Confirm the demo submission.
-5. Show the generated tracking ID and download the demo receipt PDF.
+1. Open Saathi and select Hindi (or English, Tamil, Bengali, Telugu). Explain that the language choice is remembered.
+2. Use the Farmer demo quick start. It jumps to a sample profile and shows matching schemes; alternatively answer the guided questions one at a time and skip anything.
+3. Show that eligible schemes appear first, with a short explanation, benefit, official source, verification date, document checklist, and Listen control when available.
+4. Open the optional chat and enter a phone number or bank-like value. Saathi discards it and reminds the user that demo values will be used.
+5. Select Apply for me on a matching scheme. The mock portal fills a fixed fake bank account and fake Aadhaar ending 1234 only in masked fields. Show the demo privacy notice and review screen, then confirm.
+6. Finish with the generated tracking ID and downloadable demo receipt. Clarify that the eligibility rules and portal are demonstrations, not a government decision.
 
-Backup plan: If Gemini credentials, MongoDB, or network access are unavailable, use the provided farmer chip, explain that the AI extractor is offline, and show the deterministic eligibility tests and mock portal separately. If Playwright cannot launch Chromium, use the mock portal at http://localhost:5001 directly and explain the intended pause-before-submit flow.
+Never enter or show a real person's name, phone, email, Aadhaar, bank account, or identity document during the demo.

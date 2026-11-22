@@ -26,18 +26,18 @@ export async function generateJson(kind, input, instruction) {
   const models = [process.env.GEMINI_MODEL || 'gemini-3.8-flash', process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash-lite'].filter(Boolean);
   let lastError;
   for (let index = 0; index < models.length; index++) {
-    for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const model = genAI.getGenerativeModel({ model: models[index], generationConfig: { responseMimeType: 'application/json' } });
-        const result = await model.generateContent(`${instruction}\nReturn valid JSON only.\nINPUT:\n${JSON.stringify(input)}`, { timeout: 30000 });
+        const result = await model.generateContent(`${instruction}\nReturn valid JSON only.\nINPUT:\n${JSON.stringify(input)}`, { timeout: 10000 });
         const value = JSON.parse(result.response.text());
         await saveCache(kind, input, value);
         return value;
       } catch (error) {
         lastError = error;
-        if (index === 0 && !/429|503|timeout|temporar/i.test(String(error))) throw error;
+        const status = Number(error?.status || error?.statusCode) || 0;
+        const reason = status === 429 ? 'rate-limit' : status >= 500 ? 'provider-error' : /timeout/i.test(String(error?.name || '')) ? 'timeout' : 'request-failed';
+        console.warn('Gemini request failed', { status, reason });
       }
-    }
   }
   throw lastError || new Error('AI request failed');
 }

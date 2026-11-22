@@ -23,10 +23,11 @@ export async function runAgent(app, profile) {
     emit(app, 'step', { message: 'Opening the demo portal' });
     await page.goto(`${process.env.MOCK_PORTAL_URL || 'http://localhost:5001'}${scheme.portalPath.replace('pm-kisan','pmkisan').replace('post-matric-scholarship','scholarship').replace('ayushman-bharat','ayushman').replace('pm-awas-urban','awas').replace('nsap-old-age-pension','pension')}`, { waitUntil: 'domcontentloaded' });
     const initialIncome = profile.annualIncome ?? '';
-    const values = { name: profile.name || 'Demo Applicant', age: profile.age ?? '', state: profile.state || '', income: process.env.PORTAL_HICCUP !== 'false' && initialIncome !== '' ? Number(initialIncome).toLocaleString('en-IN') : initialIncome, category: profile.category || '', bank: profile.bankAccount || '' };
+    const values = { name: 'Demo Applicant', age: profile.age ?? '', state: profile.state || '', income: process.env.PORTAL_HICCUP !== 'false' && initialIncome !== '' ? Number(initialIncome).toLocaleString('en-IN') : initialIncome, category: profile.category || '' };
     let count=0;
     for (const [field,value] of Object.entries(values)) { if (!value) continue; const locator=page.locator(`#${field}`); if(await locator.evaluate(el=>el.tagName==='SELECT')) await locator.selectOption({label:String(value)}); else await locator.fill(String(value)); count++; emit(app,'step',{message:`Filling ${field}`}); if(count%2===0) { const file=path.join(storage,`${app.id}-${count}.png`); await fs.mkdir(storage,{recursive:true}); await page.screenshot({path:file}); emit(app,'screenshot',{path:`/storage/${path.basename(file)}`}); } }
-    app.filledValues = { ...values, bank: values.bank ? `••••${String(values.bank).slice(-4)}` : '' };
+    for (const [field,value] of [['bank','000011112222'],['aadhaar','1234']]) { const locator=page.locator(`#${field}`); if (await locator.count()) { await locator.evaluate(el=>{el.type='password'}); await locator.fill(value); } }
+    app.filledValues = { age: values.age, state: values.state, income: values.income, category: values.category };
     const screenshot=path.join(storage,`${app.id}-review.png`); await fs.mkdir(storage,{recursive:true}); await page.screenshot({path:screenshot}); emit(app,'screenshot',{path:`/storage/${path.basename(screenshot)}`});
     app.status='awaiting_confirmation'; emit(app,'awaiting_confirmation',{values:app.filledValues,screenshot:`/storage/${path.basename(screenshot)}`});
     const confirmed = await waitForConfirm(app);
@@ -35,6 +36,6 @@ export async function runAgent(app, profile) {
     await page.locator('form button[type="submit"]').click();
     if (await page.locator('#error').count()) { emit(app,'step',{message:'Portal rejected the income format; correcting and retrying.'}); await page.locator('#income').fill(String(values.income).replaceAll(',','')); await page.locator('form button[type="submit"]').click(); }
     app.trackingId=await page.locator('#tracking').innerText(); app.status='submitted'; await receipt(app,scheme); emit(app,'done',{trackingId:app.trackingId});
-  } catch (error) { console.error('Application agent failed:', error.message); app.status='failed'; emit(app,'error',{message:Date.now()-started>60000?'The demo application timed out. Please try again.':'The demo portal could not complete the application. Please try again.'}); }
+  } catch { console.error('Application agent failed'); app.status='failed'; emit(app,'error',{message:Date.now()-started>60000?'The demo application timed out. Please try again.':'The demo portal could not complete the application. Please try again.'}); }
   finally { if(browser) await browser.close().catch(()=>{}); }
 }
