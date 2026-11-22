@@ -1,6 +1,7 @@
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+export const API_BASE_URL = (configuredApiUrl || 'http://localhost:5000').replace(/\/+$/, '');
 export async function request(path, options) {
-  const response = await fetch(`${API}${path}`, options);
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
   if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Request failed');
   return response.json();
 }
