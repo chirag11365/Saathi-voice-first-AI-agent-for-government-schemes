@@ -8,7 +8,7 @@
 
 Built for **IDEA//FORGE Online Hackathon** · Track 1: Civic Pulse, Digital Governance & Public Information
 
-[Live Demo](<LIVE_LINK>) · [Demo Video](<VIDEO_LINK>) · [Demo Script](DEMO_SCRIPT.md) · [Deployment Guide](DEPLOY.md)
+[Live Demo](https://saathi-ai07.netlify.app) · [Demo Script](DEMO_SCRIPT.md) · [Deployment Guide](DEPLOY.md)
 
 </div>
 
