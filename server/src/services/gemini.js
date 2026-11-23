@@ -35,8 +35,7 @@ export async function generateJson(kind, input, instruction) {
       } catch (error) {
         lastError = error;
         const status = Number(error?.status || error?.statusCode) || 0;
-        const reason = status === 429 ? 'rate-limit' : status >= 500 ? 'provider-error' : /timeout/i.test(String(error?.name || '')) ? 'timeout' : 'request-failed';
-        console.warn('Gemini request failed', { status, reason });
+        console.warn('Gemini request failed', { status });
       }
   }
   throw lastError || new Error('AI request failed');

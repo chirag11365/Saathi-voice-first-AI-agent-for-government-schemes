@@ -4,6 +4,7 @@ import Session from '../models/Session.js';
 import { memorySessions } from './session.js';
 import schemes from '../data/schemes.json' with { type: 'json' };
 import { evaluateEligibility } from '../services/eligibility.js';
+import { generateJson } from '../services/gemini.js';
 
 const router = Router();
 const copy = {
@@ -26,13 +27,21 @@ router.get('/match/:sessionId', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found. Start a new conversation first.' });
   const lang = ['en','hi','ta','bn','te'].includes(session.language) ? session.language : 'en';
   const messages = copy[lang];
-  const matches = schemes.map(scheme => {
+  const matches = await Promise.all(schemes.map(async scheme => {
     const check = evaluateEligibility(session.profile || {}, scheme.eligibility);
     const needed = check.missingFields.map(field => fieldCopy[lang][field] || field).join(', ');
-    const explanation = check.eligible === true ? messages.yes : check.eligible === false ? messages.no : `${messages.maybe} ${messages.fields}: ${needed}.`;
+    let explanation = check.eligible === true ? messages.yes : check.eligible === false ? messages.no : `${messages.maybe} ${messages.fields}: ${needed}.`;
     const whatWouldChange = check.failedRules.length ? check.failedRules.join('; ') : '';
+    const safeProfile = Object.fromEntries(['age','state','occupation','annualIncome','category','landHolding','isStudent','courseLevel'].filter(key => session.profile?.[key] != null).map(key => [key, session.profile[key]]));
+    try {
+      const result = await Promise.race([
+        generateJson('scheme-explanation', { schemeId: scheme.id, language: lang, profile: safeProfile, eligible: check.eligible, missing: check.missingFields, failed: check.failedRules }, `Explain the supplied scheme and rule-engine result in language ${lang}. Use only the given data, no more than 2 short sentences. Never promise approval. Return JSON {explanation:string}.`),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 9500))
+      ]);
+      if (typeof result.explanation === 'string') explanation = result.explanation.split(/(?<=[.!?।])\s+/u).slice(0,2).join(' ');
+    } catch (error) { if (error?.message === 'timeout') console.warn('Scheme explanation Gemini request failed', { status: 0 }); }
     return { scheme, ...check, whatWouldChange, explanation, missingDocs: scheme.requiredDocs.filter(doc => !/aadhaar|identity|bank/i.test(doc)) };
-  });
+  }));
   res.json(matches);
 });
 export default router;

@@ -4,7 +4,7 @@ const LAND_VALUES = { landNone: 0, landUnder2: 1, land2to5: 3.5, landAbove5: 6 }
 
 export function profileFromWizard(answers) {
   const profile = {};
-  if (answers.ageExact) profile.age = Number(answers.ageExact);
+  if (answers.ageExact && Number(answers.ageExact) >= 1 && Number(answers.ageExact) <= 120) profile.age = Number(answers.ageExact);
   else if (answers.ageGroup) profile.age = AGE_VALUES[answers.ageGroup];
   if (answers.state) profile.state = answers.state;
   if (answers.income && answers.income !== 'notSure' && INCOME_VALUES[answers.income] != null) profile.annualIncome = INCOME_VALUES[answers.income];

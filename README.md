@@ -7,7 +7,7 @@ Saathi is a guided, multilingual demo that helps people discover public benefit 
 1. Choose English, Hindi, Tamil, Bengali, or Telugu. The choice is remembered in the browser.
 2. Answer a few optional questions about role, age group, state, income, and (when relevant) land or student category. Skip any answer or use a quick demo profile.
 3. Review scheme matches, explanations, official sources, document checklists, and spoken summaries where the device has a matching voice.
-4. Optionally try chat or voice. Saathi does not need a name, phone, email, identity number, Aadhaar, or bank details.
+4. Ask Saathi about benefits, checklists, application steps, or eligibility terms. Answers use the scheme records and the rule engine; unknown facts point to the official source. The optional profile chat and voice mode never ask for personal identifiers.
 5. The application helper uses a mock portal and fixed demo values for any bank or Aadhaar fields. Review the demo form before confirming.
 
 [Live Demo](https://saathi-ai07.netlify.app) | [Demo Script](DEMO_SCRIPT.md) | [Deployment Guide](DEPLOY.md)
@@ -47,11 +47,11 @@ Copy `.env.example` to `.env` and configure optional values, then run `npm run d
 | `PORTAL_HICCUP` | Server | Set `false` to disable the mock validation hiccup. |
 | `HEADLESS` | Server | Set `false` to show the Playwright browser. |
 | `PORT` | Server | HTTP listen port; defaults to 5000. |
-| `CLIENT_ORIGIN` | Server | Allowed client origin for CORS. |
+| `CLIENT_ORIGIN` | Server | Allowed client origin(s) for CORS. In production, use comma-separated Netlify origins if needed. |
 
 ### Render and Netlify
 
-- Deploy the API and mock portal as long-running services. On Render, set `PORT` (Render supplies it), `CLIENT_ORIGIN` to the deployed Netlify URL, `MOCK_PORTAL_URL` to the reachable mock portal service, and optional `MONGO_URI`/Gemini values. The API health check is `/health`.
+- Deploy the API and mock portal as long-running services. On Render, set `PORT` (Render supplies it), `CLIENT_ORIGIN` to the deployed Netlify URL (comma-separated when using multiple origins), `MOCK_PORTAL_URL` to the reachable mock portal service, and optional `MONGO_URI`/Gemini values. The API health check is `/health`.
 - Deploy `client` as the Netlify site base directory. Build with `npm run build`; publish `dist`. Set `VITE_API_URL` to the Render API origin before the build. The `client/public/_redirects` rule is copied to `dist/_redirects` for SPA routes.
 - Do not put server secrets in Netlify or any `VITE_*` variable.
 
@@ -61,9 +61,10 @@ Copy `.env.example` to `.env` and configure optional values, then run `npm run d
 npm --prefix client run build
 npm --prefix client test
 npm --prefix server test
+npm --prefix server run test:e2e
 ```
 
-The client tests validate language-key completeness and wizard-to-profile mapping. Server tests cover the eligibility engine and other API behavior. For the browser smoke flow, start the app and run `npm --prefix server run smoke:browser`.
+The client tests validate language-key completeness and wizard-to-profile mapping. Server tests cover the eligibility engine. With the API and client running, the Playwright E2E test completes the Hindi farmer wizard and checks for the PM-KISAN card. For the broader browser smoke flow, run `npm --prefix server run smoke:browser`.
 
 ## Privacy and demo limits
 

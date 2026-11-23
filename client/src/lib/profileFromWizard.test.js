@@ -15,3 +15,8 @@ test('exact age overrides age group and students get category fields', () => {
 test('skipped values stay unknown instead of being guessed', () => {
   assert.deepEqual(profileFromWizard({ role:'farmer' }), { occupation:'farmer' });
 });
+test('not sure is left unknown and cannot become NaN', () => {
+  assert.deepEqual(profileFromWizard({ role:'student', ageExact:'999', ageGroup:'age18to25', income:'notSure', category:'notSure' }), {
+    age:21,occupation:'student',isStudent:true
+  });
+});
